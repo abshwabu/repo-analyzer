@@ -103,4 +103,44 @@ class RepositoryController extends Controller
             ],
         ]);
     }
+
+    /**
+     * Get commit history timeline including monthly volume and significant commits.
+     */
+    public function timeline(int $id, \App\Services\CommitTimelineService $timelineService): JsonResponse
+    {
+        $repository = Repository::find($id);
+
+        if (!$repository) {
+            return response()->json([
+                'message' => 'Repository not found',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $timeline = $timelineService->getTimeline($repository);
+
+        return response()->json([
+            'data' => $timeline,
+        ]);
+    }
+
+    /**
+     * Get contributor activity summary.
+     */
+    public function contributors(int $id, \App\Services\CommitTimelineService $timelineService): JsonResponse
+    {
+        $repository = Repository::find($id);
+
+        if (!$repository) {
+            return response()->json([
+                'message' => 'Repository not found',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $contributors = $timelineService->getContributorsSummary($repository);
+
+        return response()->json([
+            'data' => $contributors,
+        ]);
+    }
 }

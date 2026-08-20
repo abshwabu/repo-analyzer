@@ -26,15 +26,16 @@
 
       <div v-if="repoStore.statusData" class="status-card">
         <div class="status-header">
-          <h3>{{ repoStore.statusData.owner }}/{{ repoStore.statusData.name }}</h3>
+          <div>
+            <h3>{{ repoStore.statusData.owner }}/{{ repoStore.statusData.name }}</h3>
+            <p v-if="repoStore.statusData.description" class="repo-desc">
+              {{ repoStore.statusData.description }}
+            </p>
+          </div>
           <span class="status-pill" :class="repoStore.statusData.status">
             {{ repoStore.statusData.status.toUpperCase() }}
           </span>
         </div>
-
-        <p v-if="repoStore.statusData.description" class="repo-desc">
-          {{ repoStore.statusData.description }}
-        </p>
 
         <div class="stats-grid">
           <div class="stat-item">
@@ -55,23 +56,119 @@
           </div>
         </div>
 
-        <div v-if="repoStore.statusData.tech_stack && repoStore.statusData.tech_stack.length > 0" class="tech-stack-section">
-          <h4>Detected Tech Stack</h4>
-          <div class="tech-tags">
-            <span
-              v-for="tech in repoStore.statusData.tech_stack"
-              :key="tech.id"
-              class="tech-tag"
-              :class="tech.category"
-            >
-              <span class="tech-name">{{ tech.name }}</span>
-              <span class="tech-meta">{{ tech.category }} • {{ Math.round(tech.confidence) }}%</span>
-            </span>
-          </div>
+        <div v-if="repoStore.statusData.status === 'processing' || repoStore.statusData.status === 'pending'" class="polling-indicator">
+          <span class="spinner"></span> Analyzing repository in background...
         </div>
 
-        <div v-if="repoStore.statusData.status === 'processing' || repoStore.statusData.status === 'pending'" class="polling-indicator">
-          <span class="spinner"></span> Polling progress every 2 seconds...
+        <div v-if="repoStore.statusData.status === 'completed'" class="tabs-container">
+          <div class="tabs-header">
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'stack' }"
+              @click="activeTab = 'stack'"
+            >
+              Tech Stack ({{ repoStore.statusData.tech_stack?.length ?? 0 }})
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'timeline' }"
+              @click="activeTab = 'timeline'"
+            >
+              Commit Timeline
+            </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'contributors' }"
+              @click="activeTab = 'contributors'"
+            >
+              Contributors
+            </button>
+          </div>
+
+          <!-- Tech Stack Tab -->
+          <div v-if="activeTab === 'stack'" class="tab-pane">
+            <div v-if="repoStore.statusData.tech_stack && repoStore.statusData.tech_stack.length > 0" class="tech-tags">
+              <span
+                v-for="tech in repoStore.statusData.tech_stack"
+                :key="tech.id"
+                class="tech-tag"
+                :class="tech.category"
+              >
+                <span class="tech-name">{{ tech.name }}</span>
+                <span class="tech-meta">{{ tech.category }} • {{ Math.round(tech.confidence) }}%</span>
+              </span>
+            </div>
+            <p v-else class="empty-state">No tech stack items detected.</p>
+          </div>
+
+          <!-- Timeline Tab -->
+          <div v-if="activeTab === 'timeline'" class="tab-pane">
+            <div v-if="repoStore.timelineLoading" class="loading-state">Loading timeline data...</div>
+            <div v-else-if="repoStore.timelineData">
+              <h4 class="section-title">Monthly Commit Volume</h4>
+              <div v-if="repoStore.timelineData.monthly_volume?.length" class="volume-chart">
+                <div
+                  v-for="vol in repoStore.timelineData.monthly_volume"
+                  :key="vol.period"
+                  class="volume-bar-wrap"
+                >
+                  <div class="volume-bar-container">
+                    <div
+                      class="volume-bar"
+                      :style="{ height: Math.max(10, Math.min(100, (vol.count / getMaxVolume(repoStore.timelineData.monthly_volume)) * 100)) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="vol-count">{{ vol.count }}</span>
+                  <span class="vol-label">{{ vol.period }}</span>
+                </div>
+              </div>
+              <p v-else class="empty-state">No commit volume records available.</p>
+
+              <h4 class="section-title" style="margin-top: 1.5rem;">Significant Commits ({{ repoStore.timelineData.significant_commits?.length ?? 0 }})</h4>
+              <div v-if="repoStore.timelineData.significant_commits?.length" class="commits-list">
+                <div
+                  v-for="commit in repoStore.timelineData.significant_commits"
+                  :key="commit.id"
+                  class="commit-item"
+                >
+                  <div class="commit-header">
+                    <span class="commit-sha">{{ commit.short_sha }}</span>
+                    <span class="commit-reason">{{ commit.reason }}</span>
+                    <span class="commit-stats">+{{ commit.additions }} / -{{ commit.deletions }}</span>
+                  </div>
+                  <div class="commit-msg">{{ commit.message }}</div>
+                  <div class="commit-meta">By {{ commit.author_name }} on {{ formatDate(commit.committed_at) }}</div>
+                </div>
+              </div>
+              <p v-else class="empty-state">No significant commits detected.</p>
+            </div>
+          </div>
+
+          <!-- Contributors Tab -->
+          <div v-if="activeTab === 'contributors'" class="tab-pane">
+            <div v-if="repoStore.contributorsLoading" class="loading-state">Loading contributors...</div>
+            <div v-else-if="repoStore.contributorsData">
+              <div v-if="repoStore.contributorsData.contributors?.length" class="contributors-list">
+                <div
+                  v-for="contrib in repoStore.contributorsData.contributors"
+                  :key="contrib.id"
+                  class="contributor-card"
+                >
+                  <div class="contrib-info">
+                    <strong>{{ contrib.github_username }}</strong>
+                    <span class="contrib-dates" v-if="contrib.first_commit_at">
+                      {{ formatDate(contrib.first_commit_at) }} – {{ formatDate(contrib.last_commit_at) }}
+                    </span>
+                  </div>
+                  <div class="contrib-stats">
+                    <span class="contrib-count">{{ contrib.commit_count }} commits</span>
+                    <span class="contrib-share">{{ contrib.percentage_share }}%</span>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="empty-state">No contributors data recorded.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -84,6 +181,7 @@ import { useRepositoryStore } from '../stores/repository'
 
 const repoStore = useRepositoryStore()
 const githubUrl = ref('')
+const activeTab = ref('stack')
 
 const handleSubmit = async () => {
   if (!githubUrl.value) return
@@ -91,6 +189,20 @@ const handleSubmit = async () => {
     await repoStore.analyzeRepository(githubUrl.value)
   } catch (e) {
     // Handled in store
+  }
+}
+
+const getMaxVolume = (volumes) => {
+  if (!volumes || !volumes.length) return 1
+  return Math.max(...volumes.map(v => v.count), 1)
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'N/A'
+  try {
+    return new Date(dateStr).toLocaleDateString()
+  } catch {
+    return dateStr
   }
 }
 
@@ -286,18 +398,179 @@ h1 {
   align-items: center;
   gap: 0.5rem;
 }
-.spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid #6366f1;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  display: inline-block;
+.tabs-container {
+  margin-top: 1.5rem;
 }
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+.tabs-header {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.tab-btn:hover {
+  color: #4f46e5;
+  background-color: #f3f4f6;
+}
+.tab-btn.active {
+  color: #4f46e5;
+  background-color: #eef2ff;
+}
+.tab-pane {
+  padding-top: 0.5rem;
+}
+.section-title {
+  font-size: 0.95rem;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+.volume-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  height: 140px;
+  background: #ffffff;
+  padding: 1rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  overflow-x: auto;
+}
+.volume-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 45px;
+  height: 100%;
+}
+.volume-bar-container {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.volume-bar {
+  width: 24px;
+  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease;
+}
+.vol-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-top: 0.25rem;
+}
+.vol-label {
+  font-size: 0.65rem;
+  color: #6b7280;
+  margin-top: 0.1rem;
+}
+.commits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.commit-item {
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.commit-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.commit-sha {
+  font-family: monospace;
+  font-weight: 700;
+  background: #f3f4f6;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: #4f46e5;
+}
+.commit-reason {
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  text-transform: capitalize;
+}
+.commit-stats {
+  font-size: 0.75rem;
+  color: #166534;
+  margin-left: auto;
+  font-weight: 600;
+}
+.commit-msg {
+  font-size: 0.875rem;
+  color: #1f2937;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+.commit-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.contributors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.contributor-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+.contrib-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.contrib-dates {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.contrib-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.contrib-count {
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+.contrib-share {
+  font-weight: 700;
+  color: #4f46e5;
+  background: #eef2ff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+.empty-state, .loading-state {
+  color: #6b7280;
+  font-size: 0.9rem;
+  padding: 1rem 0;
 }
 </style>

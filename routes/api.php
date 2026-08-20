@@ -11,6 +11,8 @@ Route::prefix('v1')->group(function () {
     // Repository Analysis & Ingestion
     Route::post('/repositories/analyze', [RepositoryController::class, 'analyze'])->name('api.v1.repositories.analyze');
     Route::get('/repositories/{id}/status', [RepositoryController::class, 'status'])->name('api.v1.repositories.status');
+    Route::get('/repositories/{id}/timeline', [RepositoryController::class, 'timeline'])->name('api.v1.repositories.timeline');
+    Route::get('/repositories/{id}/contributors', [RepositoryController::class, 'contributors'])->name('api.v1.repositories.contributors');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/user', function (Request $request) {
