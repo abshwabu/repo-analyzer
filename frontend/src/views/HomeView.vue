@@ -47,11 +47,26 @@
           </div>
           <div class="stat-item">
             <span class="stat-value">{{ repoStore.statusData.stats?.tech_stack_count ?? 0 }}</span>
-            <span class="stat-label">Languages</span>
+            <span class="stat-label">Technologies</span>
           </div>
           <div class="stat-item">
             <span class="stat-value">{{ repoStore.statusData.stars ?? 0 }}</span>
             <span class="stat-label">Stars</span>
+          </div>
+        </div>
+
+        <div v-if="repoStore.statusData.tech_stack && repoStore.statusData.tech_stack.length > 0" class="tech-stack-section">
+          <h4>Detected Tech Stack</h4>
+          <div class="tech-tags">
+            <span
+              v-for="tech in repoStore.statusData.tech_stack"
+              :key="tech.id"
+              class="tech-tag"
+              :class="tech.category"
+            >
+              <span class="tech-name">{{ tech.name }}</span>
+              <span class="tech-meta">{{ tech.category }} • {{ Math.round(tech.confidence) }}%</span>
+            </span>
           </div>
         </div>
 
@@ -216,6 +231,52 @@ h1 {
 .stat-label {
   font-size: 0.75rem;
   color: #6b7280;
+}
+.tech-stack-section {
+  margin-top: 1.5rem;
+}
+.tech-stack-section h4 {
+  font-size: 0.95rem;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+.tech-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tech-tag {
+  display: inline-flex;
+  flex-direction: column;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+.tech-tag.language {
+  border-left: 3px solid #3b82f6;
+}
+.tech-tag.framework {
+  border-left: 3px solid #10b981;
+}
+.tech-tag.database {
+  border-left: 3px solid #f59e0b;
+}
+.tech-tag.devops {
+  border-left: 3px solid #8b5cf6;
+}
+.tech-tag.testing {
+  border-left: 3px solid #ec4899;
+}
+.tech-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+.tech-meta {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-transform: capitalize;
 }
 .polling-indicator {
   margin-top: 1rem;

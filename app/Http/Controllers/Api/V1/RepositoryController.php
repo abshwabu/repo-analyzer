@@ -4,16 +4,18 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AnalyzeRepositoryRequest;
+use App\Jobs\DetectTechStackJob;
 use App\Jobs\IngestGithubRepositoryJob;
 use App\Models\Repository;
 use App\Services\GithubIngestionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Bus;
 
 class RepositoryController extends Controller
 {
     /**
-     * Dispatch ingestion job for a GitHub repository.
+     * Dispatch chained ingestion and tech stack detection jobs for a GitHub repository.
      */
     public function analyze(AnalyzeRepositoryRequest $request, GithubIngestionService $ingestionService): JsonResponse
     {
@@ -38,8 +40,11 @@ class RepositoryController extends Controller
             ]);
         }
 
-        // Dispatch queued background job
-        IngestGithubRepositoryJob::dispatch($repository->id);
+        // Dispatch chained queued background jobs (Ingestion -> Tech Stack Detection)
+        Bus::chain([
+            new IngestGithubRepositoryJob($repository->id),
+            new DetectTechStackJob($repository->id),
+        ])->dispatch();
 
         return response()->json([
             'message' => 'Repository analysis queued successfully',
@@ -54,11 +59,13 @@ class RepositoryController extends Controller
     }
 
     /**
-     * Get the ingestion and analysis status of a repository.
+     * Get the ingestion and analysis status of a repository including tech stack results.
      */
     public function status(int $id): JsonResponse
     {
-        $repository = Repository::withCount(['commits', 'contributors', 'techStack'])->find($id);
+        $repository = Repository::with(['techStack' => function ($query) {
+            $query->orderBy('confidence', 'desc');
+        }])->withCount(['commits', 'contributors', 'techStack'])->find($id);
 
         if (!$repository) {
             return response()->json([
@@ -80,6 +87,14 @@ class RepositoryController extends Controller
                 'repo_created_at' => $repository->repo_created_at?->toIso8601String(),
                 'last_analyzed_at' => $repository->last_analyzed_at?->toIso8601String(),
                 'error_message' => $repository->error_message,
+                'tech_stack' => $repository->techStack->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'category' => $item->category,
+                        'name' => $item->name,
+                        'confidence' => (float) $item->confidence,
+                    ];
+                }),
                 'stats' => [
                     'commits_count' => $repository->commits_count,
                     'contributors_count' => $repository->contributors_count,

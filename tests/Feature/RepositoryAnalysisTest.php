@@ -28,7 +28,7 @@ class RepositoryAnalysisTest extends TestCase
 
     public function test_analyze_endpoint_dispatches_job_and_returns_accepted(): void
     {
-        Queue::fake();
+        \Illuminate\Support\Facades\Bus::fake();
 
         $response = $this->postJson('/api/v1/repositories/analyze', [
             'github_url' => 'https://github.com/torvalds/linux',
@@ -63,9 +63,10 @@ class RepositoryAnalysisTest extends TestCase
             'status' => 'pending',
         ]);
 
-        Queue::assertPushed(IngestGithubRepositoryJob::class, function ($job) use ($repoId) {
-            return $job->repositoryId === $repoId;
-        });
+        \Illuminate\Support\Facades\Bus::assertChained([
+            \App\Jobs\IngestGithubRepositoryJob::class,
+            \App\Jobs\DetectTechStackJob::class,
+        ]);
     }
 
     public function test_status_endpoint_returns_repository_progress_and_stats(): void
