@@ -90,6 +90,13 @@
             >
               ✨ AI Summary
             </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'readme' }"
+              @click="activeTab = 'readme'"
+            >
+              📄 README.md
+            </button>
           </div>
 
           <!-- Tech Stack Tab -->
@@ -254,6 +261,46 @@
               </div>
             </div>
           </div>
+
+          <!-- README Generator Tab -->
+          <div v-if="activeTab === 'readme'" class="tab-pane">
+            <div class="readme-toolbar">
+              <button
+                class="btn"
+                @click="handleGenerateReadme"
+                :disabled="repoStore.readmeLoading"
+              >
+                {{ repoStore.readmeLoading ? 'Generating README...' : repoStore.readmeData ? 'Regenerate README' : 'Generate Full README.md' }}
+              </button>
+
+              <div v-if="repoStore.readmeData" class="readme-actions">
+                <button class="btn btn-secondary" @click="handleCopyReadme">
+                  {{ copied ? '✓ Copied!' : 'Copy Markdown' }}
+                </button>
+                <a
+                  :href="`/api/v1/repositories/${repoStore.statusData.id}/readme/download`"
+                  class="btn btn-download"
+                  download="README.md"
+                >
+                  ⬇ Download README.md
+                </a>
+              </div>
+            </div>
+
+            <div v-if="repoStore.readmeError" class="error-box" style="margin-top: 1rem;">
+              <strong>Error:</strong> {{ repoStore.readmeError }}
+            </div>
+
+            <div v-if="repoStore.readmeData" class="readme-viewer">
+              <div class="readme-meta">
+                Generated at {{ formatDate(repoStore.readmeData.generated_at) }}
+              </div>
+              <pre class="markdown-preview"><code>{{ repoStore.readmeData.content }}</code></pre>
+            </div>
+            <div v-else-if="!repoStore.readmeLoading" class="empty-state">
+              No README generated yet. Click the button above to generate a comprehensive, standard markdown README.md!
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -270,6 +317,7 @@ const activeTab = ref('stack')
 
 const aiProvider = ref('anthropic')
 const aiApiKey = ref('')
+const copied = ref(false)
 
 const handleSubmit = async () => {
   if (!githubUrl.value) return
@@ -292,6 +340,31 @@ const handleGenerateSummary = async () => {
   }
 }
 
+const handleGenerateReadme = async () => {
+  if (!repoStore.statusData?.id) return
+  try {
+    await repoStore.generateReadme(repoStore.statusData.id, {
+      provider: aiApiKey.value ? aiProvider.value : undefined,
+      apiKey: aiApiKey.value || undefined,
+    })
+  } catch (e) {
+    // Handled in store
+  }
+}
+
+const handleCopyReadme = async () => {
+  if (!repoStore.readmeData?.content) return
+  try {
+    await navigator.clipboard.writeText(repoStore.readmeData.content)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy to clipboard', err)
+  }
+}
+
 const getMaxVolume = (volumes) => {
   if (!volumes || !volumes.length) return 1
   return Math.max(...volumes.map(v => v.count), 1)
@@ -300,7 +373,7 @@ const getMaxVolume = (volumes) => {
 const formatDate = (dateStr) => {
   if (!dateStr) return 'N/A'
   try {
-    return new Date(dateStr).toLocaleDateString()
+    return new Date(dateStr).toLocaleString()
   } catch {
     return dateStr
   }
@@ -787,5 +860,64 @@ h1 {
 .getting-started-instructions {
   margin-top: 0.5rem;
   font-style: italic;
+}
+.readme-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.readme-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.btn-secondary {
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+.btn-secondary:hover {
+  background-color: #e5e7eb;
+}
+.btn-download {
+  background-color: #10b981;
+  color: #ffffff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+.btn-download:hover {
+  background-color: #059669;
+}
+.readme-viewer {
+  background: #1e1e1e;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #374151;
+}
+.readme-meta {
+  background: #2d2d2d;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #374151;
+}
+.markdown-preview {
+  margin: 0;
+  padding: 1.25rem;
+  max-height: 500px;
+  overflow-y: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #e5e7eb;
+  white-space: pre-wrap;
 }
 </style>

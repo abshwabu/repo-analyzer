@@ -8,16 +8,57 @@ export const useRepositoryStore = defineStore('repository', {
     timelineData: null,
     contributorsData: null,
     summaryData: null,
+    readmeData: null,
     loading: false,
     timelineLoading: false,
     contributorsLoading: false,
     summaryLoading: false,
+    readmeLoading: false,
     polling: false,
     pollIntervalId: null,
     error: null,
     summaryError: null,
+    readmeError: null,
   }),
   actions: {
+    async generateReadme(repositoryId, options = {}) {
+      this.readmeLoading = true
+      this.readmeError = null
+      try {
+        const payload = {}
+        const headers = {}
+
+        if (options.provider) payload.provider = options.provider
+        if (options.apiKey) {
+          payload.api_key = options.apiKey
+          headers['X-AI-API-Key'] = options.apiKey
+        }
+        if (options.model) payload.model = options.model
+
+        const response = await apiClient.post(`/repositories/${repositoryId}/generate-readme`, payload, { headers })
+        this.readmeData = response.data.data
+        return response.data.data
+      } catch (err) {
+        this.readmeError = err.response?.data?.message || err.message || 'Failed to generate README'
+        throw err
+      } finally {
+        this.readmeLoading = false
+      }
+    },
+
+    async fetchReadme(repositoryId) {
+      this.readmeLoading = true
+      try {
+        const response = await apiClient.get(`/repositories/${repositoryId}/readme`)
+        this.readmeData = response.data.data
+        return response.data.data
+      } catch (err) {
+        // May not be generated yet
+        this.readmeData = null
+      } finally {
+        this.readmeLoading = false
+      }
+    },
     async generateSummary(repositoryId, { provider, apiKey, model }) {
       this.summaryLoading = true
       this.summaryError = null
@@ -69,6 +110,7 @@ export const useRepositoryStore = defineStore('repository', {
           this.stopPolling()
           this.fetchTimeline(repositoryId)
           this.fetchContributors(repositoryId)
+          this.fetchReadme(repositoryId)
         } else if (this.statusData.status === 'failed') {
           this.stopPolling()
         }
