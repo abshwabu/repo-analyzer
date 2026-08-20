@@ -25,11 +25,16 @@ class ReadmeGeneratorServiceTest extends TestCase
         $ingestionService = new GithubIngestionService();
         $extractor = new RepoContextExtractor($ingestionService);
         $aiService = new AiSummaryService($extractor);
-        $this->service = new ReadmeGeneratorService($aiService, $extractor);
+        $guideService = new \App\Services\ContributionGuideService($extractor);
+        $this->service = new ReadmeGeneratorService($aiService, $extractor, $guideService);
     }
 
     public function test_compose_markdown_includes_all_standard_sections(): void
     {
+        Http::fake([
+            'https://api.github.com/*' => Http::response([], 404),
+        ]);
+
         $repository = Repository::create([
             'github_url' => 'https://github.com/owner/markdown-repo',
             'owner' => 'owner',

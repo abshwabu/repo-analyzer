@@ -97,6 +97,13 @@
             >
               📄 README.md
             </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'contributing' }"
+              @click="activeTab = 'contributing'"
+            >
+              🤝 Contributing
+            </button>
           </div>
 
           <!-- Tech Stack Tab -->
@@ -301,6 +308,26 @@
               No README generated yet. Click the button above to generate a comprehensive, standard markdown README.md!
             </div>
           </div>
+
+          <!-- Contributing Guide Tab -->
+          <div v-if="activeTab === 'contributing'" class="tab-pane">
+            <div class="readme-toolbar">
+              <h4 class="section-title" style="margin-bottom: 0;">How to Contribute</h4>
+              <div v-if="repoStore.contributingData" class="readme-actions">
+                <button class="btn btn-secondary" @click="handleCopyContributing">
+                  {{ copiedContrib ? '✓ Copied!' : 'Copy Guidelines' }}
+                </button>
+              </div>
+            </div>
+
+            <div v-if="repoStore.contributingLoading" class="loading-state">Loading contributing guide...</div>
+            <div v-else-if="repoStore.contributingData" class="readme-viewer">
+              <pre class="markdown-preview"><code>{{ repoStore.contributingData.markdown }}</code></pre>
+            </div>
+            <div v-else class="empty-state">
+              Contributing guide not available.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -318,6 +345,7 @@ const activeTab = ref('stack')
 const aiProvider = ref('anthropic')
 const aiApiKey = ref('')
 const copied = ref(false)
+const copiedContrib = ref(false)
 
 const handleSubmit = async () => {
   if (!githubUrl.value) return
@@ -359,6 +387,19 @@ const handleCopyReadme = async () => {
     copied.value = true
     setTimeout(() => {
       copied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('Failed to copy to clipboard', err)
+  }
+}
+
+const handleCopyContributing = async () => {
+  if (!repoStore.contributingData?.markdown) return
+  try {
+    await navigator.clipboard.writeText(repoStore.contributingData.markdown)
+    copiedContrib.value = true
+    setTimeout(() => {
+      copiedContrib.value = false
     }, 2000)
   } catch (err) {
     console.error('Failed to copy to clipboard', err)

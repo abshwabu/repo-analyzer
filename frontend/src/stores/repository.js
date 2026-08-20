@@ -9,11 +9,13 @@ export const useRepositoryStore = defineStore('repository', {
     contributorsData: null,
     summaryData: null,
     readmeData: null,
+    contributingData: null,
     loading: false,
     timelineLoading: false,
     contributorsLoading: false,
     summaryLoading: false,
     readmeLoading: false,
+    contributingLoading: false,
     polling: false,
     pollIntervalId: null,
     error: null,
@@ -21,6 +23,18 @@ export const useRepositoryStore = defineStore('repository', {
     readmeError: null,
   }),
   actions: {
+    async fetchContributing(repositoryId) {
+      this.contributingLoading = true
+      try {
+        const response = await apiClient.get(`/repositories/${repositoryId}/contributing`)
+        this.contributingData = response.data.data
+        return response.data.data
+      } catch (err) {
+        console.error('Failed to load contributing guide:', err)
+      } finally {
+        this.contributingLoading = false
+      }
+    },
     async generateReadme(repositoryId, options = {}) {
       this.readmeLoading = true
       this.readmeError = null
@@ -111,6 +125,7 @@ export const useRepositoryStore = defineStore('repository', {
           this.fetchTimeline(repositoryId)
           this.fetchContributors(repositoryId)
           this.fetchReadme(repositoryId)
+          this.fetchContributing(repositoryId)
         } else if (this.statusData.status === 'failed') {
           this.stopPolling()
         }

@@ -11,11 +11,16 @@ class ReadmeGeneratorService
 {
     protected AiSummaryService $aiSummaryService;
     protected RepoContextExtractor $contextExtractor;
+    protected ContributionGuideService $contributionGuideService;
 
-    public function __construct(AiSummaryService $aiSummaryService, RepoContextExtractor $contextExtractor)
-    {
+    public function __construct(
+        AiSummaryService $aiSummaryService,
+        RepoContextExtractor $contextExtractor,
+        ContributionGuideService $contributionGuideService
+    ) {
         $this->aiSummaryService = $aiSummaryService;
         $this->contextExtractor = $contextExtractor;
+        $this->contributionGuideService = $contributionGuideService;
     }
 
     /**
@@ -363,16 +368,9 @@ class ReadmeGeneratorService
             $md[] = "";
         }
 
-        // Contributing Stub (to be enhanced in Prompt 7)
-        $md[] = "## Contributing";
-        $md[] = "";
-        $md[] = "Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.";
-        $md[] = "";
-        $md[] = "1. Fork the Project";
-        $md[] = "2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)";
-        $md[] = "3. Commit your Changes (`git commit -m 'feat: add some AmazingFeature'`)";
-        $md[] = "4. Push to the Branch (`git push origin feature/AmazingFeature`)";
-        $md[] = "5. Open a Pull Request";
+        // Contributing Section (generated via ContributionGuideService)
+        $contributingGuide = $this->contributionGuideService->generate($repository);
+        $md[] = $contributingGuide;
         $md[] = "";
 
         // License

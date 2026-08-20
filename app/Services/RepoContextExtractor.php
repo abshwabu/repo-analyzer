@@ -208,6 +208,83 @@ class RepoContextExtractor
     }
 
     /**
+     * Fetch existing CONTRIBUTING.md file if available.
+     */
+    public function fetchContributingFile(string $owner, string $repo): ?string
+    {
+        $candidates = [
+            'CONTRIBUTING.md',
+            '.github/CONTRIBUTING.md',
+            'docs/CONTRIBUTING.md',
+            'CONTRIBUTING',
+            'contributing.md',
+        ];
+
+        foreach ($candidates as $path) {
+            $content = $this->fetchFileContent($owner, $repo, $path);
+            if ($content !== null) {
+                return $this->truncateText($content, 4000);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetch PR template if present.
+     */
+    public function fetchPrTemplate(string $owner, string $repo): ?string
+    {
+        $candidates = [
+            '.github/pull_request_template.md',
+            '.github/PULL_REQUEST_TEMPLATE.md',
+            'pull_request_template.md',
+            'PULL_REQUEST_TEMPLATE.md',
+            '.github/PULL_REQUEST_TEMPLATE/pull_request_template.md',
+        ];
+
+        foreach ($candidates as $path) {
+            $content = $this->fetchFileContent($owner, $repo, $path);
+            if ($content !== null) {
+                return $this->truncateText($content, 2000);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Fetch CI workflow file names from .github/workflows.
+     *
+     * @param string $owner
+     * @param string $repo
+     * @return array<string>
+     */
+    public function fetchCiWorkflows(string $owner, string $repo): array
+    {
+        try {
+            $response = $this->ingestionService->makeRequest("/repos/{$owner}/{$repo}/contents/.github/workflows");
+            $items = $response->json();
+
+            if (!is_array($items)) {
+                return [];
+            }
+
+            $workflows = [];
+            foreach ($items as $item) {
+                $name = $item['name'] ?? '';
+                if ($name !== '' && (str_ends_with($name, '.yml') || str_ends_with($name, '.yaml'))) {
+                    $workflows[] = $name;
+                }
+            }
+
+            return $workflows;
+        } catch (Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
      * Safely truncate text to a maximum length.
      */
     public function truncateText(?string $text, int $maxChars): ?string

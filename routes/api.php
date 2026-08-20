@@ -15,6 +15,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/repositories/{id}/status', [RepositoryController::class, 'status'])->name('api.v1.repositories.status');
     Route::get('/repositories/{id}/timeline', [RepositoryController::class, 'timeline'])->name('api.v1.repositories.timeline');
     Route::get('/repositories/{id}/contributors', [RepositoryController::class, 'contributors'])->name('api.v1.repositories.contributors');
+    Route::get('/repositories/{id}/contributing', [RepositoryController::class, 'contributing'])->name('api.v1.repositories.contributing');
     Route::post('/repositories/{id}/summarize', [AiSummaryController::class, 'summarize'])->name('api.v1.repositories.summarize');
 
     // README Generator

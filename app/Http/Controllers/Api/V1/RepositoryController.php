@@ -143,4 +143,27 @@ class RepositoryController extends Controller
             'data' => $contributors,
         ]);
     }
+
+    /**
+     * Get standalone contribution guide markdown.
+     */
+    public function contributing(int $id, \App\Services\ContributionGuideService $guideService): JsonResponse
+    {
+        $repository = Repository::find($id);
+
+        if (!$repository) {
+            return response()->json([
+                'message' => 'Repository not found',
+            ], Response::HTTP_NOT_FOUND);
+        }
+
+        $markdown = $guideService->generate($repository);
+
+        return response()->json([
+            'data' => [
+                'repository_id' => $repository->id,
+                'markdown' => $markdown,
+            ],
+        ]);
+    }
 }
