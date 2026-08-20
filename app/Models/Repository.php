@@ -16,12 +16,20 @@ class Repository extends Model
         'owner',
         'name',
         'default_branch',
+        'status',
+        'error_message',
+        'description',
+        'stars',
+        'license',
+        'repo_created_at',
         'last_analyzed_at',
     ];
 
     protected function casts(): array
     {
         return [
+            'stars' => 'integer',
+            'repo_created_at' => 'datetime',
             'last_analyzed_at' => 'datetime',
         ];
     }

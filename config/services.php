@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'github' => [
+        'token' => env('GITHUB_TOKEN'),
+        'api_url' => env('GITHUB_API_URL', 'https://api.github.com'),
+        'user_agent' => env('GITHUB_USER_AGENT', 'Repo-Analyzer-App'),
+    ],
+
 ];
