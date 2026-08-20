@@ -7,14 +7,39 @@ export const useRepositoryStore = defineStore('repository', {
     statusData: null,
     timelineData: null,
     contributorsData: null,
+    summaryData: null,
     loading: false,
     timelineLoading: false,
     contributorsLoading: false,
+    summaryLoading: false,
     polling: false,
     pollIntervalId: null,
     error: null,
+    summaryError: null,
   }),
   actions: {
+    async generateSummary(repositoryId, { provider, apiKey, model }) {
+      this.summaryLoading = true
+      this.summaryError = null
+      try {
+        const response = await apiClient.post(`/repositories/${repositoryId}/summarize`, {
+          provider,
+          api_key: apiKey,
+          model: model || undefined,
+        }, {
+          headers: {
+            'X-AI-API-Key': apiKey,
+          },
+        })
+        this.summaryData = response.data.data
+        return response.data.data
+      } catch (err) {
+        this.summaryError = err.response?.data?.message || err.message || 'Failed to generate AI summary'
+        throw err
+      } finally {
+        this.summaryLoading = false
+      }
+    },
     async analyzeRepository(githubUrl) {
       this.loading = true
       this.error = null

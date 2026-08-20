@@ -83,6 +83,13 @@
             >
               Contributors
             </button>
+            <button
+              class="tab-btn"
+              :class="{ active: activeTab === 'ai' }"
+              @click="activeTab = 'ai'"
+            >
+              ✨ AI Summary
+            </button>
           </div>
 
           <!-- Tech Stack Tab -->
@@ -169,6 +176,84 @@
               <p v-else class="empty-state">No contributors data recorded.</p>
             </div>
           </div>
+
+          <!-- AI Summary Tab -->
+          <div v-if="activeTab === 'ai'" class="tab-pane">
+            <div class="ai-config-card">
+              <h4 class="section-title">AI Summary (BYO Key)</h4>
+              <p class="ai-desc">Select an AI provider and enter your API key to generate a structured architecture and getting-started analysis. Your key is never persisted.</p>
+
+              <form @submit.prevent="handleGenerateSummary" class="ai-form">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Provider</label>
+                    <select v-model="aiProvider" class="form-select">
+                      <option value="anthropic">Anthropic (Claude)</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="flex: 2;">
+                    <label>API Key</label>
+                    <input
+                      v-model="aiApiKey"
+                      type="password"
+                      placeholder="sk-..."
+                      class="input-field"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button type="submit" class="btn" :disabled="repoStore.summaryLoading || !aiApiKey">
+                  {{ repoStore.summaryLoading ? 'Generating Summary...' : 'Generate AI Summary' }}
+                </button>
+              </form>
+
+              <div v-if="repoStore.summaryError" class="error-box">
+                <strong>Error:</strong> {{ repoStore.summaryError }}
+              </div>
+            </div>
+
+            <div v-if="repoStore.summaryData" class="summary-results">
+              <div class="summary-card">
+                <div class="summary-badge">
+                  Generated with {{ repoStore.summaryData.provider.toUpperCase() }} ({{ repoStore.summaryData.model }})
+                </div>
+
+                <div class="summary-block">
+                  <h5>What this project does</h5>
+                  <p>{{ repoStore.summaryData.summary.project_overview }}</p>
+                </div>
+
+                <div class="summary-block">
+                  <h5>Architecture & Structure</h5>
+                  <p>{{ repoStore.summaryData.summary.architecture }}</p>
+                </div>
+
+                <div class="summary-block">
+                  <h5>Getting Started</h5>
+                  <div v-if="repoStore.summaryData.summary.getting_started.prerequisites?.length" class="prereq-list">
+                    <strong>Prerequisites:</strong>
+                    <span v-for="p in repoStore.summaryData.summary.getting_started.prerequisites" :key="p" class="prereq-badge">
+                      {{ p }}
+                    </span>
+                  </div>
+
+                  <div v-if="repoStore.summaryData.summary.getting_started.install_commands?.length" class="command-box">
+                    <span class="cmd-label">Installation:</span>
+                    <code>{{ repoStore.summaryData.summary.getting_started.install_commands.join('\n') }}</code>
+                  </div>
+
+                  <div v-if="repoStore.summaryData.summary.getting_started.run_commands?.length" class="command-box">
+                    <span class="cmd-label">Run Application:</span>
+                    <code>{{ repoStore.summaryData.summary.getting_started.run_commands.join('\n') }}</code>
+                  </div>
+
+                  <p class="getting-started-instructions">{{ repoStore.summaryData.summary.getting_started.instructions }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -183,10 +268,25 @@ const repoStore = useRepositoryStore()
 const githubUrl = ref('')
 const activeTab = ref('stack')
 
+const aiProvider = ref('anthropic')
+const aiApiKey = ref('')
+
 const handleSubmit = async () => {
   if (!githubUrl.value) return
   try {
     await repoStore.analyzeRepository(githubUrl.value)
+  } catch (e) {
+    // Handled in store
+  }
+}
+
+const handleGenerateSummary = async () => {
+  if (!repoStore.statusData?.id || !aiApiKey.value) return
+  try {
+    await repoStore.generateSummary(repoStore.statusData.id, {
+      provider: aiProvider.value,
+      apiKey: aiApiKey.value,
+    })
   } catch (e) {
     // Handled in store
   }
@@ -572,5 +672,120 @@ h1 {
   color: #6b7280;
   font-size: 0.9rem;
   padding: 1rem 0;
+}
+.ai-config-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+}
+.ai-desc {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+.ai-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+.form-select {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 0.9rem;
+  outline: none;
+}
+.summary-results {
+  margin-top: 1.25rem;
+}
+.summary-card {
+  background: #ffffff;
+  border: 1px solid #e0e7ff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.summary-badge {
+  display: inline-block;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.summary-block {
+  margin-bottom: 1.25rem;
+}
+.summary-block h5 {
+  font-size: 0.95rem;
+  color: #1f2937;
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+.summary-block p {
+  font-size: 0.9rem;
+  color: #4b5563;
+  line-height: 1.5;
+}
+.prereq-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: #374151;
+}
+.prereq-badge {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.command-box {
+  background: #1f2937;
+  color: #f9fafb;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+.command-box .cmd-label {
+  display: block;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.command-box code {
+  font-family: monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  color: #a7f3d0;
+}
+.getting-started-instructions {
+  margin-top: 0.5rem;
+  font-style: italic;
 }
 </style>
